@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const fileUpload = require('express-fileupload');
+const crypto = require('crypto');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -47,50 +48,68 @@ function sendFile(res, relpath) {
 
 }
 
-const chars = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890/=";
+const alphabet = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890/=";
+assert(alphabet.length == 64)
 const pw = "helloworld";
 
-function xtoy(bytes, password) {
-    let b64 = bytes.toString("base64");
+function xtoy(dataBuffer, password) {
+   const salt = crypto.randomBytes(16);
+    const key = crypto.pbkdf2Sync(password, salt, 100000, 32, 'sha256');
+    const iv = crypto.randomBytes(12);
 
-    let final = "";
-    for (let i = 0; i < b64.length; i++) {
-        char = b64[i];
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+    const encrypted = Buffer.concat([cipher.update(dataBuffer), cipher.final()]);
+    const tag = cipher.getAuthTag();
 
+    // Combine: salt + iv + tag + encrypted
+    const combined = Buffer.concat([salt, iv, tag, encrypted]);
+    return combined.toString('base64'); // encode as string
+}
 
-        target = chars.indexOf(password[i % password.length]);
-        final = final + chars[(chars.indexOf(char) + target) % chars.length];
-    }
+/**
+ * Decrypts a string into a Buffer.
+ * @param {string} encoded - The encrypted string.
+ * @param {string} encryption_key - The key used for encryption.
+ * @returns {Buffer|null} The decrypted buffer, or null if decoding fails.
+ */
+function ytox(encryptedString, password) {
+     const combined = Buffer.from(encryptedString, 'base64');
 
-    return final;
+    const salt = combined.slice(0, 16);
+    const iv = combined.slice(16, 28);
+    const tag = combined.slice(28, 44);
+    const encrypted = combined.slice(44);
 
+    const key = crypto.pbkdf2Sync(password, salt, 100000, 32, 'sha256');
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    decipher.setAuthTag(tag);
 
-
+    const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+    return decrypted; // returns a Buffer
 }
 
 
-
-
-function ytox(encoded, password) {
-    let base64 = "";
-    for (let i = 0; i < encoded.length; i++) {
-        let char = encoded[i];
-        let target = chars.indexOf(password[i % password.length]);
-        
-        // subtract instead of add
-        let idx = (chars.indexOf(char) - target + chars.length) % chars.length;
-        base64 += chars[idx];
+function assert(condition) {
+    if (!condition) {
+        throw new Error("condition is false"); // ????
     }
-
-    return Buffer.from(base64, "base64");
 }
-
-function 
 
 
 app.get('/', (req, res) => {
     sendFile(res, "index.html")
 });
+
+function genID(length = 6) {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+        const idx = Math.floor(Math.random() * chars.length);
+        result += chars[idx];
+    }
+    return result;
+}
+
 
 
 app.post("/api/upload", async (req, res) => {
@@ -111,15 +130,13 @@ app.post("/api/upload", async (req, res) => {
    const mime = type ? type.mime : "text/plain";
 
 
-     assert(ytox(xtoy(sampleFile.data, pw), pw) === sampleFile.data)
-
-
+    id = genID()
 
     let encrypted = xtoy(sampleFile.data, pw);
 
 
     var stream = fs.createWriteStream(
-        path.join(__dirname, "images", "test")
+        path.join(__dirname, "files", id)
     );
     stream.once("open", function(fd) {
         stream.write(mime + "\n");
@@ -127,13 +144,13 @@ app.post("/api/upload", async (req, res) => {
         stream.end();
     });
 
-    res.send(host + "/" + "test");
+    res.send(host + "/" + id);
 
 
 });
 app.get("/:filename", (req, res) => {
     const filename = req.params.filename;
-    const filePath = path.join(__dirname, "images", filename);
+    const filePath = path.join(__dirname, "files", filename);
 
     fs.access(filePath, fs.constants.F_OK, (err) => {
         if (err) return res.status(404).send("File not found");
