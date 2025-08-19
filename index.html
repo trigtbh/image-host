@@ -1,16 +1,33 @@
 <html>
-    <h1>
-        Image Host
-    </h1>
+  <h1>Image Host</h1>
 
-    <h2>Upload an image</h2>
+  <h2>Upload an image</h2>
 
-    <input type="file" accept="image/*">
-    <button>Upload</button>
+  <form id="uploadForm" enctype="multipart/form-data">
+    <input type="file" name="uploadedFile" />
+    <input type="submit" value="Upload!" />
+  </form>
 
-    <div id="preview">
+  <div id="response"></div>
 
-        <!-- returned image link goes here-->
-    </div>
+  <script>
+    document.getElementById("uploadForm").addEventListener("submit", async (e) => {
+      e.preventDefault(); // stop default redirect
 
+      const form = e.target;
+      const formData = new FormData(form);
+
+      try {
+        const res = await fetch("http://127.0.0.1:3000/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        const text = await res.text(); // or res.json() if server returns JSON
+        document.getElementById("response").innerText = text;
+      } catch (err) {
+        document.getElementById("response").innerText = "Upload failed: " + err;
+      }
+    });
+  </script>
 </html>
