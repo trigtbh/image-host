@@ -329,7 +329,7 @@
 
       try {
         // Fetch request remains the same
-        const res = await fetch("http://127.0.0.1:3000/api/upload", {
+        const res = await fetch("/api/upload", {
           method: "POST",
           body: formData,
         });
