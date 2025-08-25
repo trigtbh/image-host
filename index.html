@@ -1,33 +1,367 @@
-<html>
-  <h1>Image Host</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Beautiful Image Uploader</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+  <style>
+    /* --- Base Styles & Variables --- */
+    :root {
+      --primary-color: #4a90e2;
+      --primary-hover-color: #357abd;
+      --background-color: #f4f7fc;
+      --card-background-color: #ffffff;
+      --text-color: #333;
+      --subtle-text-color: #888;
+      --border-color: #dce6f0;
+      --success-color: #28a745;
+      --error-color: #dc3545;
+      --drop-zone-accent: #c8d9e8;
+    }
 
-  <h2>Upload an image</h2>
+    body {
+      font-family: "Poppins", sans-serif;
+      background-color: var(--background-color);
+      color: var(--text-color);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 1rem;
+      box-sizing: border-box;
+    }
 
-  <form id="uploadForm" enctype="multipart/form-data">
-    <input type="file" name="uploadedFile" />
-    <input type="submit" value="Upload!" />
-  </form>
+    /* --- Uploader Container --- */
+    .uploader-container {
+      background-color: var(--card-background-color);
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 30, 80, 0.1);
+      padding: 2.5rem;
+      text-align: center;
+      max-width: 450px;
+      width: 100%;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
 
-  <div id="response"></div>
+    .uploader-container h1 {
+      margin-top: 0;
+      margin-bottom: 1rem;
+      font-size: 1.75rem;
+      font-weight: 600;
+      color: var(--text-color);
+    }
+
+    /* --- Drop Zone --- */
+    .drop-zone {
+      border: 2px dashed var(--border-color);
+      border-radius: 12px;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      min-height: 200px;
+    }
+
+    .drop-zone.drag-over {
+      border-color: var(--primary-color);
+      background-color: #e9f2ff;
+    }
+
+    .drop-zone__instructions {
+      color: var(--subtle-text-color);
+    }
+    .drop-zone__instructions.hidden {
+      display: none;
+    }
+
+    .drop-zone__icon {
+      width: 60px;
+      height: 60px;
+      color: var(--drop-zone-accent);
+      margin-bottom: 1rem;
+    }
+
+    .drop-zone p {
+      margin: 0 0 0.5rem 0;
+      font-weight: 500;
+      color: var(--text-color);
+    }
+
+    /* --- Image Preview --- */
+    .image-preview {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      position: absolute;
+      top: 0;
+      left: 0;
+      padding: 1rem;
+      box-sizing: border-box;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+    }
+
+    .image-preview.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* --- Buttons & Inputs --- */
+    .browse-button {
+      color: var(--primary-color);
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .submit-button {
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 0.75rem 1.5rem;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 1.5rem;
+      transition: background-color 0.3s ease, transform 0.2s ease;
+    }
+
+    .submit-button:hover:not(:disabled) {
+      background-color: var(--primary-hover-color);
+      transform: translateY(-2px);
+    }
+
+    .submit-button:disabled {
+      background-color: #a0a0a0;
+      cursor: not-allowed;
+    }
+
+    /* --- Response & Loading State --- */
+    .response-message {
+      margin-top: 1rem;
+      padding: 0.75rem;
+      border-radius: 8px;
+      display: none; /* Hidden by default */
+      font-weight: 500;
+    }
+
+    .response-message.success {
+      background-color: #e9f7ec;
+      color: var(--success-color);
+      display: block;
+    }
+
+    .response-message.error {
+      background-color: #fdeeee;
+      color: var(--error-color);
+      display: block;
+    }
+    
+    .loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(255, 255, 255, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+    
+    .loading-overlay.visible {
+        opacity: 1;
+        visibility: visible;
+    }
+    
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid var(--border-color);
+      border-top-color: var(--primary-color);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="uploader-container">
+    <h1>✨ Image Uploader</h1>
+    <form id="uploadForm" enctype="multipart/form-data">
+      
+      <div class="drop-zone" id="dropZone">
+        <div class="drop-zone__instructions" id="instructions">
+          <svg class="drop-zone__icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+          </svg>
+          <p>Drag & Drop your image here</p>
+          <span>or <label for="fileInput" class="browse-button">browse files</label></span>
+        </div>
+        <img id="imagePreview" src="#" alt="Image Preview" class="image-preview" />
+      </div>
+
+      <input type="file" name="uploadedFile" id="fileInput" hidden accept="image/*" />
+
+      <button type="submit" class="submit-button" id="submitButton" disabled>Upload!</button>
+    </form>
+    
+    <div id="response" class="response-message"></div>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+    </div>
+  </div>
 
   <script>
-    document.getElementById("uploadForm").addEventListener("submit", async (e) => {
-      e.preventDefault(); // stop default redirect
+    // --- Get DOM Elements ---
+    const uploadForm = document.getElementById("uploadForm");
+    const dropZone = document.getElementById("dropZone");
+    const fileInput = document.getElementById("fileInput");
+    const imagePreview = document.getElementById("imagePreview");
+    const instructions = document.getElementById("instructions");
+    const submitButton = document.getElementById("submitButton");
+    const responseDiv = document.getElementById("response");
+    const loadingOverlay = document.getElementById("loadingOverlay");
 
-      const form = e.target;
-      const formData = new FormData(form);
+    let selectedFile = null;
+
+    // --- Drag and Drop Event Listeners ---
+    dropZone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropZone.classList.add("drag-over");
+    });
+
+    ["dragleave", "dragend"].forEach((type) => {
+      dropZone.addEventListener(type, () => {
+        dropZone.classList.remove("drag-over");
+      });
+    });
+
+    dropZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropZone.classList.remove("drag-over");
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        // Assign file to our hidden input
+        fileInput.files = files; 
+        handleFileSelect(files[0]);
+      }
+    });
+
+    // --- Click to browse listener ---
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    // --- File Input Change Listener ---
+    fileInput.addEventListener("change", (e) => {
+      const files = e.target.files;
+      if (files.length > 0) {
+        handleFileSelect(files[0]);
+      }
+    });
+
+    // --- Handle File Selection and Preview ---
+    function handleFileSelect(file) {
+      // Check if the file is an image
+      if (file && file.type.startsWith("image/")) {
+        selectedFile = file;
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+          imagePreview.src = e.target.result;
+          imagePreview.classList.add("visible");
+          instructions.classList.add("hidden");
+        };
+
+        reader.readAsDataURL(file);
+        submitButton.disabled = false;
+        clearResponseMessage();
+      } else {
+        // Handle non-image file selection
+        selectedFile = null;
+        alert("Please select an image file.");
+      }
+    }
+    
+    // --- Form Submission ---
+    uploadForm.addEventListener("submit", async (e) => {
+      e.preventDefault(); // Stop default form submission
+
+      if (!selectedFile) {
+        alert("Please select a file to upload.");
+        return;
+      }
+      
+      // Show loading spinner and disable button
+      loadingOverlay.classList.add('visible');
+      submitButton.disabled = true;
+      submitButton.textContent = 'Uploading...';
+      clearResponseMessage();
+
+      const formData = new FormData();
+      // Use the name 'uploadedFile' as specified in your original form
+      formData.append("uploadedFile", selectedFile); 
 
       try {
+        // Fetch request remains the same
         const res = await fetch("http://127.0.0.1:3000/api/upload", {
           method: "POST",
           body: formData,
         });
 
-        const text = await res.text(); // or res.json() if server returns JSON
-        document.getElementById("response").innerText = text;
+        const text = await res.text();
+        
+        if (!res.ok) {
+            // Handle HTTP errors like 404, 500
+            throw new Error(`Server responded with ${res.status}: ${text}`);
+        }
+
+        showResponseMessage(text, "success");
       } catch (err) {
-        document.getElementById("response").innerText = "Upload failed: " + err;
+        showResponseMessage(`Upload failed: ${err.message}`, "error");
+      } finally {
+        // Hide loading spinner and re-enable button
+        loadingOverlay.classList.remove('visible');
+        submitButton.disabled = false;
+        submitButton.textContent = 'Upload!';
       }
     });
+    
+    // --- Helper functions for UI feedback ---
+    function showResponseMessage(message, type) {
+        responseDiv.textContent = message;
+        responseDiv.className = `response-message ${type}`;
+    }
+
+    function clearResponseMessage() {
+        responseDiv.textContent = '';
+        responseDiv.className = 'response-message';
+    }
   </script>
+</body>
 </html>
