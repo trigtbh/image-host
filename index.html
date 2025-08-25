@@ -100,26 +100,6 @@
       color: var(--text-color);
     }
 
-    /* --- Image Preview --- */
-    .image-preview {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      position: absolute;
-      top: 0;
-      left: 0;
-      padding: 1rem;
-      box-sizing: border-box;
-      opacity: 0;
-      transition: opacity 0.3s ease;
-      pointer-events: none;
-    }
-
-    .image-preview.visible {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
     /* --- Buttons & Inputs --- */
     .browse-button {
       color: var(--primary-color);
@@ -220,13 +200,12 @@
           <svg class="drop-zone__icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
           </svg>
-          <p>Drag & Drop your image here</p>
+          <p>Drag & Drop your file here</p>
           <span>or <label for="fileInput" class="browse-button">browse files</label></span>
         </div>
-        <img id="imagePreview" src="#" alt="Image Preview" class="image-preview" />
       </div>
 
-      <input type="file" name="uploadedFile" id="fileInput" hidden accept="image/*" />
+      <input type="file" name="uploadedFile" id="fileInput" hidden />
 
       <button type="submit" class="submit-button" id="submitButton" disabled>Upload!</button>
     </form>
@@ -243,7 +222,6 @@
     const uploadForm = document.getElementById("uploadForm");
     const dropZone = document.getElementById("dropZone");
     const fileInput = document.getElementById("fileInput");
-    const imagePreview = document.getElementById("imagePreview");
     const instructions = document.getElementById("instructions");
     const submitButton = document.getElementById("submitButton");
     const responseDiv = document.getElementById("response");
@@ -287,24 +265,14 @@
 
     // --- Handle File Selection and Preview ---
     function handleFileSelect(file) {
-      // Check if the file is an image
-      if (file && file.type.startsWith("image/")) {
+      if (file) {
         selectedFile = file;
-        const reader = new FileReader();
-
-        reader.onload = (e) => {
-          imagePreview.src = e.target.result;
-          imagePreview.classList.add("visible");
-          instructions.classList.add("hidden");
-        };
-
-        reader.readAsDataURL(file);
+        instructions.classList.add("hidden");
         submitButton.disabled = false;
         clearResponseMessage();
       } else {
-        // Handle non-image file selection
         selectedFile = null;
-        alert("Please select an image file.");
+        alert("Please select a file.");
       }
     }
     
